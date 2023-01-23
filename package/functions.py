@@ -1,4 +1,4 @@
-## Загрузка вспомогательных библиотек
+## Загрузка библиотек
 import os
 import pandas as pd
 import datetime as dt
@@ -9,7 +9,7 @@ import numpy as np
 
 
 
-## Подготовка вспомогательных функций, используемых в исследовании
+## Вспомогательные функции, используемые в исследовании
 
 
 ### Функция загрузки датасета
@@ -67,7 +67,7 @@ def dataset_preparation(df):
 
     print('\nЭтап 2. ... запускаем замену некорректного указания типа None ...')
     df = df.replace(['nan'], np.nan)
-    print('Все некорректные указания на пустые значеия заменены на None.')
+    print('Все некорректные указания на пустые значения заменены на None.')
 
     print('\nЭтап 3. ... запускаем изменение типов данных в полях даты и времени ...')
     if 'visit_date' in df.columns:
@@ -133,8 +133,12 @@ def dataset_preparation(df):
     if 'visit_date' in df.columns:
         print('\nЭтап 6. ... запускаем поиск и удаление аномалий ...')
         df = delete_anomalies(df)
-        print('Записи с клиентами, имеющими аномально большое кодичество визитов - удалены.')
+        print('Записи с клиентами, имеющими аномально большое количество визитов - удалены.')
         print(f'Размер Датасета после удаления аномалий: {df.shape}')
+
+        # Агрегируем и визуализируем распределение атрибутов датасета
+        agg_changes(df)
+
 
 
     return df
@@ -320,18 +324,32 @@ def delete_anomalies(df):
     return df
 
 
-### Агрегация параметров датасета визитов во времени
-def visual_plots(df):
-    # Подготовка полей для группировки датасета
+### Агрегация атрибутов датасета визитов во времени
+def agg_changes(df):
+    """
+    Функция агрегирует данные датасета для формирования визуализации распределения визитов клиентов по разным атрибутам
+
+        Параметры:
+            df (DataFrame): агрегируемый датасет
+        Выходные параметры (None)
+
+    """
+
+    # Поле для подсчёта уникальных клиентов
+    print('\nЭтап 7. ... запускаем подготовку визуализации по п.2.1.4(пп7) ...')
     df['client'] = df['client_id']
 
-    # Словарь агрегирующих функций по атрибутам и агрегация для визуализации
+    # Словарь агрегируемых атребутов и функций по атрибутам
     ag_dict = {'client_id': 'max', 'visit_date': 'min', 'visit_time': 'min',
                'geo_country': 'max', 'geo_city': 'max',
                'device_category': 'max', 'device_browser': 'max',
                'utm_source': 'max', 'utm_medium': 'max'}
+    print('Словарь функций агрегируемых атрибутов - подготовлен.')
+    print('... запускаем агрегацию атрибутов (агрегация займёт время)...')
 
+    # Датасет сагрегированных атрибутов визитов
     df_ag = df.groupby('client').agg(ag_dict)
+    print('Агрегация завершена.')
 
     # Агрегация посещений новыми клиентами по месяцам
     df_ag['year-month'] = df_ag['visit_date'].apply(lambda x: dt.datetime.strftime(x, "%Y-%m"))
@@ -349,111 +367,111 @@ def visual_plots(df):
     df_ag['hourOFday'] = df_ag['visit_time'].apply(lambda x: x.hour)
     ag_hd = df_ag.groupby('hourOFday').agg({'client_id': 'count'})
 
-    return [(ag_ym, 'по мясецам'),
-            (ag_dm, 'по дням месяца'),
-            (ag_dw, 'по дням недели'),
-            (ag_hd, 'по часам дня')]
+    # Агрегация структуры стран нахождения клиентов
+    ag_country = df_ag.groupby('geo_country'). \
+        agg({'client_id': 'count'}).sort_values('client_id', ascending=False)
+    country_count = (ag_country.index.to_list()[:5],
+                     ag_country.client_id.to_list()[:5])
+
+    # Агрегация структуры городов нахождения клиентов
+    ag_city = df_ag.groupby('geo_city'). \
+        agg({'client_id': 'count'}).sort_values('client_id', ascending=False)
+    city_count = (ag_city.index.to_list()[:10],
+                  ag_city.client_id.to_list()[:10])
+
+    # Агрегация структуры типов дивайсов, которые используют клиенты
+    ag_device = df_ag.groupby('device_category'). \
+        agg({'client_id': 'count'}).sort_values('client_id', ascending=False)
+    divice_count = (ag_device.index.to_list(),
+                    ag_device.client_id.to_list())
+
+    # Агрегация структуры браузеров, которые используют клиенты
+    ag_browser = df_ag.groupby('device_browser'). \
+        agg({'client_id': 'count'}).sort_values('client_id', ascending=False)
+    browser_count = (ag_browser.index.to_list()[:10],
+                     ag_browser.client_id.to_list()[:10])
+
+    # Агрегация структуры каналов привлечения клиентов
+    ag_source = df_ag.groupby('utm_source'). \
+        agg({'client_id': 'count'}).sort_values('client_id', ascending=False)
+    source_count = (ag_source.index.to_list()[:10],
+                    ag_source.client_id.to_list()[:10])
+
+    # Агрегация структуры типов привлечения клиентов
+    ag_medium = df_ag.groupby('utm_medium'). \
+        agg({'client_id': 'count'}).sort_values('client_id', ascending=False)
+    medium_count = (ag_medium.index.to_list()[:10],
+                    ag_medium.client_id.to_list()[:10])
+
+    print('Данные для вывода графиков готовы.')
+
+    dfs = [(ag_ym, 'по месяцам'), (ag_dm, 'по дням месяца'),
+           (ag_dw, 'по дням недели'), (ag_hd, 'по часам дня'),
+           (country_count, 'Страны нахождения клиентов'),
+           (city_count, 'Города нахождения клиентов'),
+           (divice_count, 'Типы устройств, используемые клиентами'),
+           (browser_count, 'Браузеры, используемые клиентами'),
+           (source_count, 'Каналы привлечения клиентов'),
+           (medium_count, 'Типы привлечения клиентов')]
+
+    time_plot(dfs[:4])
+    structure_plot(dfs[4:])
 
 
-### Визуализация параметров датасета визитов во времени
-def show_plot(df, title):
-    fig, bx = plt.subplots(figsize=(12, 3))
-    bx.plot(df.index, df['client_id'], color='green')
-    bx.set_xlabel('Периоды')
-    bx.set_ylabel('Количество уникальных визитов')
-    bx.set_title(f'Распределение визитов {title}')
-    bx.yaxis.set_major_formatter(FormatStrFormatter('%.0f'));
-
-
-def fig_hist(dfs):
-    for elem in dfs:
-        show_plot(elem[0], elem[1])
-
-
-### Функция конкатенации строки даты и времени
-def create_date_time_visit(date, time):
+### Формирование полотна частоты посещения сайта
+def time_plot(dfs):
     """
-    Функция сцепляет строковое значение даты и времени визитов.
-    Предназнаена для использования с датасетом визитов
+    Функция визуализирует распределение визитов клиентов по временным периодам
 
         Параметры:
-            date (str): дата визита
-            time (str): время визита
-        Выходные параметры (str, None)
+            dfs (DataFrame): cагрегированная часть датасета визитов, касающаяся распределения визитов по временным периодами
+        Выходные параметры (None)
 
     """
-    if pd.notna(date) and pd.notna(time):
-        return str(date) + ' ' + str(time)
-    elif pd.notna(date):
-        return str(date) + str(' 00:00:00')
-    else:
-        return None
+
+    print('\nИЗМЕНЕНИЕ ПО ПЕРИОДАМ ВРЕМЕНИ КОЛИЧЕСТВА ВИЗИТОВ КЛИЕНТОВ НА САЙТ')
+    fig, ax = plt.subplots(figsize=(15, 3))
+    ax.set_title(f'Визиты {dfs[0][1]}')
+    ax.plot(dfs[0][0].index, dfs[0][0]['client_id'], color='green')
+
+    fig, ax = plt.subplots(figsize=(15, 3))
+    ax.set_title(f'Визиты {dfs[1][1]}')
+    ax.plot(dfs[1][0].index, dfs[1][0]['client_id'], color='green')
+
+    fig, axs = plt.subplots(figsize=(15, 3), ncols=2, nrows=1)
+    axs[0].set_title(f'Визиты {dfs[2][1]} (воск.-суб.)')
+    axs[0].plot(dfs[2][0].index, dfs[2][0]['client_id'], color='green')
+    axs[1].set_title(f'Визиты {dfs[3][1]}')
+    axs[1].plot(dfs[3][0].index, dfs[3][0]['client_id'], color='green')
+
+    plt.show();
 
 
-### Функция обогощения времени визита и времени каждого события (в наносекундах)
-def create_date_time_ns(date_time, date, ns):
+### Формирование полотна структуры посещений сайта
+def structure_plot(dfs):
     """
-    Функция обогащает время визита при его отсутсвии в датасете визитов и сцепляет строковое значение времени событий и визитов.
-    Предназнаена для использования с объединённым датасетом
+    Функция визуализирует распределение визитов клиентов по географии, девайсам, каналам привлечения
 
         Параметры:
-            date_time (str): дата и время визита
-            data (str): дата события
-            ms (str): время (в наносекундах)
-        Выходные параметры (str, None)
+            dfs (DataFrame): cагрегированная часть датасета визитов, касающаяся распределения визитов по по географии, дивайсам, каналам привлечения
+        Выходные параметры (None)
 
     """
-    if pd.notna(date_time) and pd.notna(ns):
-        return str(date_time) + f'{int(ns) / 1000000000:.9f}'[1:]
-    elif pd.notna(date_time):
-        return str(date_time) + '.000000000'
-    elif pd.isna(date_time) and pd.notna(date) and pd.notna(ns):
-        return str(date) + f' 00:00:0{int(ns) / 1000000000:.9f}'
-    elif pd.isna(date_time) and pd.notna(date) and pd.isna(ns):
-        return str(date) + ' 00:00:00.000000000'
-    else:
-        return None
+
+    print('\nРАСПРЕДЕЛЕНИЕ КЛИЕНТОВ ПО ГЕОГРАФИИ, ДЕВАЙСАМ И КАНАЛАМ ПРИВЛЕЧЕНИЯ')
+    for i in range(len(dfs)):
+        fig, ax = plt.subplots(figsize=(15, 3))
+
+        a = dfs[i][0][0]
+        b = dfs[i][0][1]
+        y_pos = np.arange(len(a))
+
+        ax.barh(y_pos, b, color='green')
+        ax.set_yticks(y_pos, labels=a)
+        ax.invert_yaxis()
+        ax.set_title(dfs[i][1])
+        ax.xaxis.set_major_formatter(FormatStrFormatter('%.0f'));
+
+        plt.show();
 
 
-### Функция объединения датасетов
-def data_marge(df_pk, df_fk, key):
-    """
-    Функция объединяет два датасета и иллюстрирует пропуски данных
-
-        Параметры:
-            df_pk (DataFrame): датасет, с первичным ключом, используемым для объединени
-            df_fk (DataFrame): датасет, с внешним ключом, используемым для объединения
-        Выходные параметры:
-            df (DataFrame): объединённый датасет
-
-    """
-    print(f"\n... объединяем датасеты по ключу '{key}' ...")
-    df = df_pk.merge(df_fk, left_on=key, right_on=key, how='outer')
-    print('Датасеты объединёны.')
-    print('... очищаем память от загруженных ранее промежуточных датасетов ...')
-    del df_pk, df_fk  # очищаем память от ненужных датасетов
-    print('Промежуточные датасеты удалены.\n')
-
-    print('\n... запускаем объединение полей даты и времени события ...')
-    df['date_time'] = df.apply(lambda x:
-                               create_date_time_ns(x.date_time, x.hit_date, x.hit_time),
-                               axis=1)
-    print("Объединение полей даты и времени событий осуществлено в поле 'date_time'.")
-
-    print("\n... запускаем преобразование типа в полей 'date_time' ...")
-    df['date_time'] = pd.to_datetime(df['date_time'])
-    print("Преобразование типа в поле 'date_time' на тип `datetime64(ns)` завершено .")
-
-    df.drop(columns=['hit_date', 'hit_time'], inplace=True)
-    print("Поля 'hit_date' и 'hit_time' удалены из объединённого датасета.")
-    size_df = df.shape
-    print(f'Датасет содержит {size_df[0]} строк и {size_df[1]} столбцов.')
-
-    print('\n... анализируем пропущенные значения в датасете ...')
-    data_set_audit(df)  # запускаем проверку на пустые значения в датасете
-    print('Анализ пропущенных значений в датасете завершён.\n')
-
-    print('... готовим иллюстрацию заполненности датасета значениями ...')
-    msno.matrix(df)  # визуализируем заполнение занчениями датасета
-
-    return df

@@ -1,4 +1,11 @@
-from . import libraries
+import os
+import pandas as pd
+import datetime as dt
+import missingno as msno
+import matplotlib.pylab as plt
+from matplotlib.ticker import FormatStrFormatter
+import numpy as np
+from scipy import stats
 
 
 def pvalue_info(pvalue):
@@ -75,7 +82,7 @@ def welch_T_test(df_1, df_2, check):
     return pvalue
 
 
-def wilcoxon_RANK_test():
+def wilcoxon_RANK_test(df_1, df_2, check):
     """
         Функция запуска теста по ранговому критерию Уилкоксона
 

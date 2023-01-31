@@ -32,7 +32,7 @@ def paired_T_test(df_1, df_2, check):
             Параметры:
                 df_1 (DataFrame): первая сравниваемая выборка
                 df_2 (DataFrame): вторая сравниваемая выборка
-            Выходные параметры (None)
+            Выходные параметры (float)
 
     """
     if pd.isna(check):
@@ -51,7 +51,7 @@ def student_T_test(df_1, df_2, check):
             Параметры:
                 df_1 (DataFrame): первая сравниваемая выборка
                 df_2 (DataFrame): вторая сравниваемая выборка
-            Выходные параметры (None)
+            Выходные параметры (float)
 
     """
     if pd.isna(check):
@@ -70,7 +70,7 @@ def welch_T_test(df_1, df_2, check):
             Параметры:
                 df_1 (DataFrame): первая сравниваемая выборка
                 df_2 (DataFrame): вторая сравниваемая выборка
-            Выходные параметры (None)
+            Выходные параметры (float)
 
     """
     if pd.isna(check):
@@ -89,7 +89,7 @@ def wilcoxon_RANK_test(df_1, df_2, check):
             Параметры:
                 df_1 (DataFrame): первая сравниваемая выборка
                 df_2 (DataFrame): вторая сравниваемая выборка
-            Выходные параметры (None)
+            Выходные параметры (float)
 
     """
     if pd.isna(check):
@@ -108,7 +108,7 @@ def mannwhitney_U_test(df_1, df_2, check):
             Параметры:
                 df_1 (DataFrame): первая сравниваемая выборка
                 df_2 (DataFrame): вторая сравниваемая выборка
-            Выходные параметры (None)
+            Выходные параметры (float)
 
     """
     if pd.isna(check):
@@ -158,7 +158,7 @@ def choose_method(df_1, df_2, dependenceFlag=True, check=None):
                 df_1 (DataFrame): первая сравниваемая выборка
                 df_2 (DataFrame): вторая сравниваемая выборка
                 dependenceFlag (bool): флаг зависимости двух выборок
-            Выходные параметры (None)
+            Выходные параметры (float)
 
     """
     # Проверяем распределения выборок по нормальному закону
@@ -172,18 +172,18 @@ def choose_method(df_1, df_2, dependenceFlag=True, check=None):
 
     # Выбор теста для проверки гипотезы
     if normalFlag and dependenceFlag:
-        paired_T_test(df_1, df_2, check)
+        return paired_T_test(df_1, df_2, check)
     elif normalFlag and not dependenceFlag:
         if stats.levene(df_1, df_2)[1] <= 0.05:
             if pd.isna(check):
                 print('ДИСПЕРСИИ выборок - неравны')
-            welch_T_test(df_1, df_2, check)
+            return welch_T_test(df_1, df_2, check)
         else:
             if pd.isna(check):
                 print('ДИСПЕРСИИ выборок - равны')
-            student_T_test(df_1, df_2, check)
+            return student_T_test(df_1, df_2, check)
     elif not normalFlag and dependenceFlag:
-        wilcoxon_RANK_test(df_1, df_2, check)
+        return wilcoxon_RANK_test(df_1, df_2, check)
     else:
         return mannwhitney_U_test(df_1, df_2, check)
 
